@@ -74,7 +74,7 @@ export default function App() {
           <div className="logo"><Logo size={44} /></div>
           <div>
             <h1>Sean's Cut</h1>
-            <p className="sub">→ 74kg &amp; leaner · keep stacking days</p>
+            <p className="sub">→ 74kg &amp; leaner<span className="subextra"> · keep stacking days</span></p>
           </div>
         </div>
         <div className="topbtns">

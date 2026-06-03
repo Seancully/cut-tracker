@@ -143,8 +143,19 @@ export default function WorkoutLog({ user }) {
 
   return (
     <>
+      <RestTimer />
+
+      <datalist id="exList">
+        {exNames.map((n) => (
+          <option key={n} value={n} />
+        ))}
+      </datalist>
+
       <div className="card">
-        <h2>Cardio <span className="tag">{cardioToday} min today</span></h2>
+        <h2>Today's session · {day}</h2>
+
+        {/* ---- cardio: first thing in the session ---- */}
+        <h3 className="seclabel">Cardio <b>{cardioToday} min today</b></h3>
         <form onSubmit={logCardio} className="setline">
           <input
             className="sm"
@@ -162,35 +173,23 @@ export default function WorkoutLog({ user }) {
           />
           <button className="primary" type="submit">Log</button>
         </form>
-        <div className="stats" style={{ marginTop: 14 }}>
-          <div className="stat"><div className="n accent">{cardioToday}</div><div className="l">min today</div></div>
-          <div className="stat"><div className="n">{cardioWk}</div><div className="l">min · 7 days</div></div>
-          <div className="stat"><div className="n">{cardio.length}</div><div className="l">sessions today</div></div>
-        </div>
-        {cardio.length > 0 ? (
-          <div style={{ marginTop: 8 }}>
+        {cardio.length > 0 && (
+          <div style={{ marginTop: 6 }}>
             {cardio.map((c) => (
               <div className="setrow" key={c.id}>
                 <span className="sval">{c.minutes} min{c.kind ? ` · ${c.kind}` : ''}</span>
                 <span className="x" onClick={() => delCardio(c.id)} title="Delete">✕</span>
               </div>
             ))}
+            {cardioWk !== cardioToday && (
+              <p className="note" style={{ marginTop: 6 }}>{cardioWk} min over the last 7 days.</p>
+            )}
           </div>
-        ) : (
-          <p className="note" style={{ marginTop: 10 }}>Log warm-up or steady-state cardio here — minutes roll up to a weekly total and tick your daily cardio habit.</p>
         )}
-      </div>
 
-      <RestTimer />
+        <hr className="divider" />
 
-      <datalist id="exList">
-        {exNames.map((n) => (
-          <option key={n} value={n} />
-        ))}
-      </datalist>
-
-      <div className="card">
-        <h2>Today's session · {day}</h2>
+        {/* ---- lifting ---- */}
         <label className="f">
           Label (optional — e.g. Push, Pull, Legs)
           <input value={label} onChange={(e) => saveLabel(e.target.value)} placeholder="Push" />
