@@ -59,7 +59,7 @@ h1{font-family:var(--display); font-size:26px; font-weight:700; margin:0; letter
 .view > .card:nth-child(4){animation-delay:.17s}
 .view > .card:nth-child(5){animation-delay:.22s}
 .view > .card:nth-child(6){animation-delay:.27s}
-@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important} .view>.card{opacity:1!important}}
 
 /* ---------- wide-screen layout ---------- */
 @media (min-width:880px){
