@@ -68,6 +68,18 @@ create table if not exists public.workout_sets (
 create index if not exists idx_sets_user_exercise on public.workout_sets (user_id, exercise);
 create index if not exists idx_workouts_user_day on public.workouts (user_id, day);
 
+-- ---------- CARDIO LOGS (one row per cardio session; many per day allowed) ----------
+create table if not exists public.cardio_logs (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  day        date not null default current_date,
+  minutes    integer not null,
+  kind       text,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_cardio_user_day on public.cardio_logs (user_id, day);
+
 -- ============================================================
 -- Row Level Security
 -- ============================================================
@@ -76,12 +88,13 @@ alter table public.daily_checks  enable row level security;
 alter table public.weigh_ins     enable row level security;
 alter table public.workouts      enable row level security;
 alter table public.workout_sets  enable row level security;
+alter table public.cardio_logs   enable row level security;
 
 -- Helper: a single policy per table covering all actions for the owner.
 do $$
 declare t text;
 begin
-  foreach t in array array['settings','daily_checks','weigh_ins','workouts','workout_sets']
+  foreach t in array array['settings','daily_checks','weigh_ins','workouts','workout_sets','cardio_logs']
   loop
     execute format('drop policy if exists own_rows on public.%I;', t);
     execute format(

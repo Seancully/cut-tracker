@@ -43,10 +43,12 @@ body{
 ::-webkit-scrollbar-thumb{background:#222831;border-radius:99px;border:2px solid #090a0c}
 ::-webkit-scrollbar-thumb:hover{background:#2c333d}
 
-.wrap{max-width:1000px; margin:0 auto; padding:26px 22px 110px}
+.wrap{max-width:1000px; margin:0 auto;
+  padding:calc(22px + env(safe-area-inset-top)) calc(22px + env(safe-area-inset-right))
+          calc(110px + env(safe-area-inset-bottom)) calc(22px + env(safe-area-inset-left))}
 
-h1{font-family:var(--display); font-size:26px; font-weight:700; margin:0; letter-spacing:-.7px}
-.sub{color:var(--muted); font-size:12.5px; margin:2px 0 0; font-weight:450}
+h1{font-family:var(--display); font-size:26px; font-weight:700; margin:0; letter-spacing:-.7px; line-height:1.05}
+.sub{color:var(--muted); font-size:12.5px; margin:3px 0 0; font-weight:450}
 
 /* ---------- view + reveal motion ---------- */
 @keyframes viewIn{from{opacity:0; transform:translateY(6px) scale(.995)} to{opacity:1; transform:none}}
@@ -59,6 +61,8 @@ h1{font-family:var(--display); font-size:26px; font-weight:700; margin:0; letter
 .view > .card:nth-child(4){animation-delay:.17s}
 .view > .card:nth-child(5){animation-delay:.22s}
 .view > .card:nth-child(6){animation-delay:.27s}
+.view > .card:nth-child(7){animation-delay:.32s}
+.view > .card:nth-child(8){animation-delay:.37s}
 @media (prefers-reduced-motion:reduce){*{animation:none!important} .view>.card{opacity:1!important}}
 
 /* ---------- wide-screen layout ---------- */
@@ -72,8 +76,17 @@ h1{font-family:var(--display); font-size:26px; font-weight:700; margin:0; letter
 }
 
 /* ---------- header ---------- */
-.top{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:22px}
-.brand{display:flex; align-items:center; gap:12px}
+.top{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:22px}
+.brand{display:flex; align-items:center; gap:12px; min-width:0}
+.brand > div{min-width:0}
+/* tighten the header on phones so the title + tagline don't crowd */
+@media (max-width:520px){
+  .top{align-items:center}
+  h1{font-size:22px}
+  .sub{font-size:11.5px}
+  .logo{width:40px; height:40px; border-radius:12px}
+  .signout{padding:8px 12px; font-size:11.5px}
+}
 .logo{width:44px; height:44px; border-radius:13px; overflow:hidden; flex:none;
   box-shadow:0 10px 22px -8px rgba(201,246,79,.5), 0 0 0 1px rgba(255,255,255,.07)}
 .logo svg{display:block}

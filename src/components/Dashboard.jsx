@@ -29,24 +29,33 @@ export default function Dashboard({ user }) {
   const [checks, setChecks] = useState({})
   const [weight, setWeight] = useState('')
   const [hist, setHist] = useState([])
+  const [cardio, setCardio] = useState([])
+  const [cardioWk, setCardioWk] = useState(0)
+  const [cmin, setCmin] = useState('')
+  const [ckind, setCkind] = useState('')
   const day = todayStr()
   const saveTimer = useRef(null)
 
   useEffect(() => {
     let active = true
     const cutoff = todayStr(new Date(Date.now() - 32 * 86400000))
+    const wkCutoff = todayStr(new Date(Date.now() - 6 * 86400000))
     ;(async () => {
-      const [s, c, w, h] = await Promise.all([
+      const [s, c, w, h, cd, cw] = await Promise.all([
         supabase.from('settings').select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('daily_checks').select('*').eq('user_id', user.id).eq('day', day).maybeSingle(),
         supabase.from('weigh_ins').select('weight').eq('user_id', user.id).eq('day', day).maybeSingle(),
         supabase.from('daily_checks').select('*').eq('user_id', user.id).gte('day', cutoff),
+        supabase.from('cardio_logs').select('*').eq('user_id', user.id).eq('day', day).order('created_at', { ascending: true }),
+        supabase.from('cardio_logs').select('minutes').eq('user_id', user.id).gte('day', wkCutoff),
       ])
       if (!active) return
       if (s.data) setSettings(s.data)
       if (c.data) setChecks(c.data)
       if (w.data) setWeight(String(w.data.weight))
       if (h.data) setHist(h.data)
+      if (cd.data) setCardio(cd.data)
+      if (cw.data) setCardioWk(cw.data.reduce((a, r) => a + (r.minutes || 0), 0))
     })()
     return () => { active = false }
   }, [user.id, day])
@@ -90,7 +99,38 @@ export default function Dashboard({ user }) {
     }, 700)
   }
 
+  async function logCardio(e) {
+    e.preventDefault()
+    const m = parseInt(cmin)
+    if (!m || m <= 0) return
+    const row = { user_id: user.id, day, minutes: m, kind: ckind.trim() || null }
+    const { data, error } = await supabase.from('cardio_logs').insert(row).select().single()
+    if (error) { toast(error.message, 'bad'); return }
+    setCardio([...cardio, data])
+    setCardioWk((w) => w + m)
+    setCmin('')
+    buzz()
+    toast(`Cardio · ${m} min logged 🏃`, 'ok')
+    // logging cardio auto-ticks the cardio habit
+    if (!checks.cardio) {
+      const nc = { ...checks, cardio: true }
+      setChecks(nc)
+      supabase.from('daily_checks').upsert(
+        { user_id: user.id, day, ...stripMeta(nc) },
+        { onConflict: 'user_id,day' }
+      )
+    }
+  }
+
+  async function delCardio(id) {
+    const gone = cardio.find((c) => c.id === id)
+    await supabase.from('cardio_logs').delete().eq('id', id)
+    setCardio(cardio.filter((c) => c.id !== id))
+    if (gone) setCardioWk((w) => Math.max(0, w - (gone.minutes || 0)))
+  }
+
   const done = CHECKS.filter(([k]) => checks[k]).length
+  const cardioToday = cardio.reduce((a, c) => a + (c.minutes || 0), 0)
   const momentum = computeMomentum(hist, checks, day)
 
   return (
@@ -156,6 +196,43 @@ export default function Dashboard({ user }) {
             <div className="l">Days logged</div>
           </div>
         </div>
+      </div>
+
+      <div className="card span2">
+        <h2>Cardio <span className="tag">{cardioToday} min today</span></h2>
+        <form onSubmit={logCardio} className="setline" style={{ marginTop: 4 }}>
+          <input
+            className="sm"
+            type="text"
+            inputMode="numeric"
+            value={cmin}
+            onChange={(e) => setCmin(e.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="min"
+          />
+          <input
+            className="ex"
+            value={ckind}
+            onChange={(e) => setCkind(e.target.value)}
+            placeholder="type — treadmill, walk, bike…"
+          />
+          <button className="primary" type="submit">Log</button>
+        </form>
+        <div className="stats" style={{ marginTop: 14 }}>
+          <div className="stat"><div className="n accent">{cardioToday}</div><div className="l">min today</div></div>
+          <div className="stat"><div className="n">{cardioWk}</div><div className="l">min · 7 days</div></div>
+          <div className="stat"><div className="n">{settings.cardio || '–'}</div><div className="l">daily target</div></div>
+        </div>
+        {cardio.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            {cardio.map((c) => (
+              <div className="setrow" key={c.id}>
+                <span className="sval">{c.minutes} min{c.kind ? ` · ${c.kind}` : ''}</span>
+                <span className="x" onClick={() => delCardio(c.id)} title="Delete">✕</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {cardio.length === 0 && <p className="note" style={{ marginTop: 10 }}>Log every cardio session — minutes add up across the week and feed your deficit. Logging also ticks your cardio habit.</p>}
       </div>
 
       <div className="card span2">
