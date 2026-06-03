@@ -15,9 +15,14 @@ export default function WorkoutLog({ user }) {
   const [history, setHistory] = useState([])
   const [lastHint, setLastHint] = useState(null)
   const hintTimer = useRef(null)
+  const [cardio, setCardio] = useState([])
+  const [cardioWk, setCardioWk] = useState(0)
+  const [cmin, setCmin] = useState('')
+  const [ckind, setCkind] = useState('')
 
   useEffect(() => {
     let active = true
+    const wkCutoff = todayStr(new Date(Date.now() - 6 * 86400000))
     ;(async () => {
       const { data: w } = await supabase
         .from('workouts').select('*').eq('user_id', user.id).eq('day', day).maybeSingle()
@@ -29,10 +34,41 @@ export default function WorkoutLog({ user }) {
           .from('workout_sets').select('*').eq('workout_id', w.id).order('position', { ascending: true })
         if (active) setSets(s || [])
       }
+      const [{ data: cd }, { data: cw }] = await Promise.all([
+        supabase.from('cardio_logs').select('*').eq('user_id', user.id).eq('day', day).order('created_at', { ascending: true }),
+        supabase.from('cardio_logs').select('minutes').eq('user_id', user.id).gte('day', wkCutoff),
+      ])
+      if (active) {
+        setCardio(cd || [])
+        setCardioWk((cw || []).reduce((a, r) => a + (r.minutes || 0), 0))
+      }
       loadHistory()
     })()
     return () => { active = false }
   }, [user.id, day])
+
+  async function logCardio(e) {
+    e.preventDefault()
+    const m = parseInt(cmin)
+    if (!m || m <= 0) return
+    const row = { user_id: user.id, day, minutes: m, kind: ckind.trim() || null }
+    const { data, error } = await supabase.from('cardio_logs').insert(row).select().single()
+    if (error) { toast(error.message, 'bad'); return }
+    setCardio([...cardio, data])
+    setCardioWk((w) => w + m)
+    setCmin('')
+    buzz()
+    toast(`Cardio · ${m} min logged 🏃`, 'ok')
+    // logging cardio also ticks the daily cardio habit (merge-update, keeps other checks)
+    supabase.from('daily_checks').upsert({ user_id: user.id, day, cardio: true }, { onConflict: 'user_id,day' })
+  }
+
+  async function delCardio(id) {
+    const gone = cardio.find((c) => c.id === id)
+    await supabase.from('cardio_logs').delete().eq('id', id)
+    setCardio(cardio.filter((c) => c.id !== id))
+    if (gone) setCardioWk((w) => Math.max(0, w - (gone.minutes || 0)))
+  }
 
   async function loadHistory() {
     const { data } = await supabase
@@ -103,8 +139,48 @@ export default function WorkoutLog({ user }) {
     ]),
   ].filter(Boolean)
 
+  const cardioToday = cardio.reduce((a, c) => a + (c.minutes || 0), 0)
+
   return (
     <>
+      <div className="card">
+        <h2>Cardio <span className="tag">{cardioToday} min today</span></h2>
+        <form onSubmit={logCardio} className="setline">
+          <input
+            className="sm"
+            type="text"
+            inputMode="numeric"
+            value={cmin}
+            onChange={(e) => setCmin(e.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="min"
+          />
+          <input
+            className="ex"
+            value={ckind}
+            onChange={(e) => setCkind(e.target.value)}
+            placeholder="type — treadmill, walk, bike…"
+          />
+          <button className="primary" type="submit">Log</button>
+        </form>
+        <div className="stats" style={{ marginTop: 14 }}>
+          <div className="stat"><div className="n accent">{cardioToday}</div><div className="l">min today</div></div>
+          <div className="stat"><div className="n">{cardioWk}</div><div className="l">min · 7 days</div></div>
+          <div className="stat"><div className="n">{cardio.length}</div><div className="l">sessions today</div></div>
+        </div>
+        {cardio.length > 0 ? (
+          <div style={{ marginTop: 8 }}>
+            {cardio.map((c) => (
+              <div className="setrow" key={c.id}>
+                <span className="sval">{c.minutes} min{c.kind ? ` · ${c.kind}` : ''}</span>
+                <span className="x" onClick={() => delCardio(c.id)} title="Delete">✕</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="note" style={{ marginTop: 10 }}>Log warm-up or steady-state cardio here — minutes roll up to a weekly total and tick your daily cardio habit.</p>
+        )}
+      </div>
+
       <RestTimer />
 
       <datalist id="exList">
