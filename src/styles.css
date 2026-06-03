@@ -279,3 +279,86 @@ code{background:var(--panel2); border:1px solid var(--line); border-radius:6px; 
 .cutmeta .hl b{color:var(--accent)}
 .cutmeta span:nth-child(2){align-items:center}
 .cutmeta span:nth-child(3){align-items:flex-end}
+
+/* ============================================================
+   ✨ visual polish — depth, motion & glow (cosmetic only)
+   ============================================================ */
+
+/* drifting aurora behind the content (sits above the grid, behind cards) */
+body::before{
+  content:""; position:fixed; inset:-25% -12% auto -12%; height:85vh; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(38% 48% at 22% 18%, rgba(201,246,79,.11), transparent 72%),
+    radial-gradient(46% 56% at 84% 12%, rgba(92,200,255,.10), transparent 72%);
+  filter:blur(34px);
+  animation:aurora 20s ease-in-out infinite alternate;
+}
+@keyframes aurora{
+  0%{transform:translate3d(-3%,0,0) scale(1)}
+  100%{transform:translate3d(4%,2.5%,0) scale(1.09)}
+}
+
+/* lime accent tick before every card title */
+.card h2::before{
+  content:""; width:3px; height:13px; border-radius:2px; flex:none;
+  background:linear-gradient(var(--accent),var(--cyan));
+  box-shadow:0 0 9px rgba(201,246,79,.55);
+}
+
+/* cards: subtle top sheen + lift on hover (desktop) */
+.card{position:relative; overflow:hidden}
+.card::after{
+  content:""; position:absolute; top:0; left:18px; right:18px; height:1px; pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent);
+}
+@media (hover:hover){
+  .card{transition:transform .25s var(--ease), border-color .2s var(--ease), box-shadow .25s var(--ease)}
+  .card:hover{transform:translateY(-3px); border-color:var(--line2);
+    box-shadow:0 26px 50px -26px rgba(0,0,0,.9), 0 0 0 1px rgba(201,246,79,.10), var(--ring-glow)}
+}
+
+/* gradient-clipped accent numbers for that premium glow */
+.stat .n.accent,
+.ring .lab b{
+  background:linear-gradient(120deg,#e3ff7a 0%,#c9f64f 45%,#5cc8ff 100%);
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent; color:transparent;
+}
+
+/* big morning weight gets a faint halo */
+.bigweight{text-shadow:0 0 26px rgba(201,246,79,.14)}
+
+/* soft pulsing glow behind the hero ring */
+.ring{isolation:isolate}
+.ring::before{
+  content:""; position:absolute; inset:8px; border-radius:50%; z-index:-1;
+  background:radial-gradient(circle, rgba(201,246,79,.22), transparent 68%);
+  animation:ringpulse 3.4s var(--ease) infinite;
+}
+@keyframes ringpulse{0%,100%{opacity:.45; transform:scale(.92)} 50%{opacity:.9; transform:scale(1.04)}}
+
+/* moving shine sweep across the cut-progress fill */
+.cutbar{position:relative}
+.cutbar > i{position:relative; overflow:hidden}
+.cutbar > i::after{
+  content:""; position:absolute; inset:0;
+  background:linear-gradient(100deg, transparent 20%, rgba(255,255,255,.45) 50%, transparent 80%);
+  transform:translateX(-100%); animation:shine 3.6s ease-in-out infinite;
+}
+@keyframes shine{0%{transform:translateX(-100%)} 55%,100%{transform:translateX(220%)}}
+
+/* tab bar: animated lime hairline under the rail */
+.tabs{overflow:hidden}
+.tabs::after{
+  content:""; position:absolute; left:0; right:0; bottom:0; height:1px; pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(201,246,79,.5), transparent);
+  background-size:50% 100%; background-repeat:no-repeat;
+  animation:railsweep 4.5s linear infinite;
+}
+@keyframes railsweep{0%{background-position:-50% 0} 100%{background-position:150% 0}}
+.tabs{position:sticky}
+
+/* keep motion-sensitive users calm */
+@media (prefers-reduced-motion:reduce){
+  body::before,.ring::before,.cutbar > i::after,.tabs::after{animation:none!important}
+}
