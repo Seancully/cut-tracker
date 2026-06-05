@@ -2,11 +2,15 @@ import { useEffect, useState } from 'react'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts'
-import { supabase } from '../lib/supabase'
+import { supabase, todayStr } from '../lib/supabase'
+import { toast } from '../lib/toast'
+import { buzz } from '../lib/haptics'
 
 export default function Progress({ user }) {
   const [rows, setRows] = useState([])
   const [goal, setGoal] = useState(null)
+  const [wDate, setWDate] = useState(todayStr())
+  const [wVal, setWVal] = useState('')
 
   useEffect(() => {
     ;(async () => {
@@ -18,6 +22,34 @@ export default function Progress({ user }) {
       if (s?.goal_weight) setGoal(parseFloat(s.goal_weight))
     })()
   }, [user.id])
+
+  async function saveWeighIn(e) {
+    e.preventDefault()
+    const num = parseFloat(wVal)
+    if (isNaN(num) || !wDate) return
+    const { error } = await supabase
+      .from('weigh_ins')
+      .upsert({ user_id: user.id, day: wDate, weight: num }, { onConflict: 'user_id,day' })
+    if (error) { toast(error.message, 'bad'); return }
+    setRows((prev) => {
+      const next = prev.filter((r) => r.day !== wDate).concat([{ day: wDate, weight: num }])
+      next.sort((a, b) => (a.day < b.day ? -1 : 1))
+      return next
+    })
+    setWVal('')
+    buzz()
+    toast(`Saved ${num}kg · ${shortDate(wDate)}`, 'ok')
+  }
+
+  async function delWeighIn(d) {
+    await supabase.from('weigh_ins').delete().eq('user_id', user.id).eq('day', d)
+    setRows((prev) => prev.filter((r) => r.day !== d))
+  }
+
+  function editWeighIn(r) {
+    setWDate(r.day)
+    setWVal(String(r.weight))
+  }
 
   const data = withRollingAvg(rows)
   const stats = computeStats(data, goal)
@@ -31,8 +63,48 @@ export default function Progress({ user }) {
       ? Math.min(100, Math.max(0, ((start - current) / (start - goal)) * 100))
       : null
 
+  const recent = [...rows].reverse()
+
   return (
     <>
+      <div className="card span2">
+        <h2>Log a weigh-in <span className="tag">any day</span></h2>
+        <form onSubmit={saveWeighIn} className="setline">
+          <input
+            className="ex"
+            type="date"
+            value={wDate}
+            max={todayStr()}
+            onChange={(e) => setWDate(e.target.value)}
+          />
+          <input
+            className="sm"
+            type="text"
+            inputMode="decimal"
+            value={wVal}
+            onChange={(e) => setWVal(e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+            placeholder="kg"
+          />
+          <button className="primary" type="submit">Save</button>
+        </form>
+        <p className="note" style={{ marginTop: 10 }}>
+          Pick any date to back-fill a missed morning or fix a typo — saving overwrites that day. Tap a row to edit it.
+        </p>
+        {recent.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            {recent.slice(0, 10).map((r) => (
+              <div className="setrow" key={r.day}>
+                <span className="snum" style={{ width: 70 }}>{shortDate(r.day)}</span>
+                <span className="sval" style={{ cursor: 'pointer' }} onClick={() => editWeighIn(r)}>
+                  {Number(r.weight).toFixed(2)} kg
+                </span>
+                <span className="x" onClick={() => delWeighIn(r.day)} title="Delete">✕</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="card span2">
         <h2>Cut progress {cutPct != null && <span className="tag">{Math.round(cutPct)}%</span>}</h2>
         {start != null ? (
